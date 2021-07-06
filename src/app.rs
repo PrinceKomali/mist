@@ -1,3 +1,6 @@
+//I have no idea what half of this stuff does - Komali
+
+
 // app struct and its functions, one of which is the application mainloop
 use sdl2::event::{Event, WindowEvent};
 use sdl2::get_error;
@@ -48,12 +51,32 @@ pub struct App {
     config: Config,
     msf: MsfParser,
 }
+const PI: f32 = 3.1415926535897932384626;
+fn rainbow(num: i32) -> Vec<[u8; 3]> {
+    let mut arr = vec![[0, 0, 0]];
+    for i in 0..num {
+      let r = sin_to_rgb(i, 0.0 * PI * 0.66666666667, num);
+      let g = sin_to_rgb(i, 1.0 * PI * 0.66666666667, num);
+      let b = sin_to_rgb(i, 2.0 * PI * 0.66666666667, num);
+      arr.push([r, g, b]);
+    }
+    arr.remove(0);
+    return arr;
+}
+  
+fn sin_to_rgb(i: i32, b: f32, num: i32) -> u8 {
+    let sin = (PI / (num as f32) * 2.0 * (i as f32) + b).sin();
+    let int = (sin * 127.0).floor() as i32 + 128;
+    return int as u8;
+}
+
 impl App {
     pub fn init(context: sdl2::Sdl) -> Result<Self, String> {
         // sdl setup boilerplate
+        // println!("a");
         let video = context.video()?;
         let mut window = video
-            .window("mist", 300, 500)
+            .window("mist", 400, 80)
             .position_centered()
             .resizable()
             .build()
@@ -105,6 +128,8 @@ impl App {
     }
 
     pub fn run(&mut self) -> Result<(), String> {
+        let mut rainbow_int: i32 = 0;
+        
         let mut no_file: bool;
         let mut path = match self.config.file() {
             Some(p) => {
@@ -142,29 +167,32 @@ impl App {
             for panel in self.config.panels() {
                 let (text, paneltype) = match panel {
                     Panel::Pace { golds } => {
-                        if *golds {
-                            ("Pace (best)", Panel::Pace { golds: true })
-                        } else {
+                        // if *golds {
+                        //     ("Pace (best)", Panel::Pace { golds: true })
+                        // } else {
                             ("Pace (pb)", Panel::Pace { golds: false })
-                        }
+                        // }
                     }
                     Panel::SumOfBest => ("Sum of Best", Panel::SumOfBest),
                     Panel::CurrentSplitDiff { golds } => {
-                        if *golds {
-                            (
-                                "Split (best)",
-                                Panel::CurrentSplitDiff { golds: true },
-                            )
-                        } else {
+                        // if *golds {
+                        //     (
+                        //         "Split (best)",
+                        //         Panel::CurrentSplitDiff { golds: true },
+                        //     )
+                        // } else {
                             (
                                 "Split (pb)",
                                 Panel::CurrentSplitDiff { golds: false },
                             )
-                        }
+                        // }
                     }
                 };
+                
+                // color = Color::RGB(red, green, blue);
                 let text_sur = font
                     .render(text)
+                    
                     .blended(Color::WHITE)
                     .map_err(|_| get_error())?;
                 let text_tex = creator
@@ -282,11 +310,21 @@ impl App {
             .map_err(|_| get_error())?
             .1;
         // render initial white font map. gets overwritten when color changes
-        let map = timer_font
+        timer_font.set_outline_width(0);
+        let mut map = timer_font //hi peri
             .render("- 0 1 2 3 4 5 6 7 8 9 : .")
+            
             .blended(Color::WHITE)
             .map_err(|_| get_error())?;
-        let mut map_tex = creator
+        let mut map_tex = creator //I'll do another one like this
+            .create_texture_from_surface(&map)
+            .map_err(|_| get_error())?;
+        map = timer_font //hi peri
+            .render("- 0 1 2 3 4 5 6 7 8 9 : .")
+            
+            .blended(Color::WHITE)
+            .map_err(|_| get_error())?;
+        let mut map_tex_outline = creator //I'll do another one like this
             .create_texture_from_surface(&map)
             .map_err(|_| get_error())?;
         // set the height where overlap with splits is checked when resizing window
@@ -298,15 +336,11 @@ impl App {
             .map_err(|_| get_error())?;
         self.canvas
             .window_mut()
-            .set_size(300, 500 + (splits_height * panels.len() as u32))
+            .set_size(400, 82)
             .map_err(|_| get_error())?;
         self.canvas
             .window_mut()
-            .set_title(&format!(
-                "mist: {} ({})",
-                self.run.game_title(),
-                self.run.category(),
-            ))
+            .set_title("mist")
             .map_err(|_| get_error())?;
 
         // get first vec of split name textures from file
@@ -393,6 +427,7 @@ impl App {
         let mut frame_time: Instant;
         // display time
         let mut time_str: String;
+        let mut time_str_outline: String;
         // keep track of amount of time that passed before the timer was paused
         let mut before_pause = 0;
         let mut before_pause_split = 0;
@@ -427,6 +462,7 @@ impl App {
 
         // main loop
         'running: loop {
+            rainbow_int = (rainbow_int + 11)%2500;
             // start measuring the time this loop pass took
             frame_time = Instant::now();
             // remove stuff from the backbuffer and fill the space with black
@@ -491,17 +527,7 @@ impl App {
                                     split_ticks = elapsed;
                                     self.canvas
                                         .window_mut()
-                                        .set_title(&format!(
-                                            "mist: {} ({}) [{}: {}]",
-                                            self.run.game_title(),
-                                            self.run.category(),
-                                            current_split + 1,
-                                            if self.run.splits().len() != 0 {
-                                                &self.run.splits()[current_split]
-                                            } else {
-                                                ""
-                                            }
-                                        ))
+                                        .set_title("mist")
                                         .map_err(|_| get_error())?;
                                     match offset {
                                         // if we are in the start offset, tell it to offset
@@ -546,7 +572,7 @@ impl App {
                                         {
                                             save = true;
                                             did_gold = true;
-                                            color = gold;
+                                            // color = gold;
                                             self.run.set_gold_time(
                                                 active_run_times[current_split],
                                                 current_split,
@@ -591,17 +617,7 @@ impl App {
                                             current_split += 1;
                                             self.canvas
                                                 .window_mut()
-                                                .set_title(&format!(
-                                                    "mist: {} ({}) [{}: {}]",
-                                                    self.run.game_title(),
-                                                    self.run.category(),
-                                                    current_split + 1,
-                                                    if self.run.splits().len() != 0 {
-                                                        &self.run.splits()[current_split]
-                                                    } else {
-                                                        ""
-                                                    }
-                                                ))
+                                                .set_title("mist")
                                                 .map_err(|_| get_error())?;
                                             // if the next split is offscreen set recreate_on_screen flag to change the current split slice
                                             if current_split > bottom_split_index
@@ -612,13 +628,10 @@ impl App {
                                             }
                                         // otherwise end the run
                                         } else {
+                                            current_split += 1;
                                             self.canvas
                                                 .window_mut()
-                                                .set_title(&format!(
-                                                    "mist: {} ({})",
-                                                    self.run.game_title(),
-                                                    self.run.category(),
-                                                ))
+                                                .set_title("mist")
                                                 .map_err(|_| get_error())?;
                                             // set the state of the timer to finished, round string to 30fps
                                             self.state = TimerState::NotRunning {
@@ -662,11 +675,7 @@ impl App {
                                     } else {
                                         self.canvas
                                             .window_mut()
-                                            .set_title(&format!(
-                                                "mist: {} ({})",
-                                                self.run.game_title(),
-                                                self.run.category(),
-                                            ))
+                                            .set_title("mist")
                                             .map_err(|_| get_error())?;
                                         elapsed = self.timer.elapsed().as_millis();
                                         if no_file {
@@ -696,17 +705,7 @@ impl App {
                                 } => {
                                     self.canvas
                                         .window_mut()
-                                        .set_title(&format!(
-                                            "mist: {} ({}) [{}: {}]",
-                                            self.run.game_title(),
-                                            self.run.category(),
-                                            current_split + 1,
-                                            if self.run.splits().len() != 0 {
-                                                &self.run.splits()[current_split]
-                                            } else {
-                                                ""
-                                            }
-                                        ))
+                                        .set_title("mist")
                                         .map_err(|_| get_error())?;
                                     start_ticks = elapsed;
                                     split_ticks = elapsed;
@@ -718,17 +717,7 @@ impl App {
                                 TimerState::Running { .. } => {
                                     self.canvas
                                         .window_mut()
-                                        .set_title(&format!(
-                                            "mist: {} ({}) [{}: {}] (paused)",
-                                            self.run.game_title(),
-                                            self.run.category(),
-                                            current_split + 1,
-                                            if self.run.splits().len() != 0 {
-                                                &self.run.splits()[current_split]
-                                            } else {
-                                                ""
-                                            }
-                                        ))
+                                        .set_title("mist")
                                         .map_err(|_| get_error())?;
                                     elapsed = self.timer.elapsed().as_millis();
                                     self.state = TimerState::Paused {
@@ -745,11 +734,7 @@ impl App {
                         } else if k == binds.reset {
                             self.canvas
                                 .window_mut()
-                                .set_title(&format!(
-                                    "mist: {} ({})",
-                                    self.run.game_title(),
-                                    self.run.category(),
-                                ))
+                                .set_title("mist")
                                 .map_err(|_| get_error())?;
                             // reset stuff specific to the active run and return splits to the top of the list
                             active_run_times = vec![];
@@ -763,6 +748,7 @@ impl App {
                             before_pause_split = 0;
                             current_split = 0;
                             color = ahead;
+                            // println!("{:?}", offset);
                             // if there is an offset, reset the timer to that, if not, reset timer to 0
                             match offset {
                                 Some(x) => {
@@ -909,11 +895,7 @@ impl App {
                                     elapsed = self.timer.elapsed().as_millis();
                                     self.canvas
                                         .window_mut()
-                                        .set_title(&format!(
-                                            "mist: {} ({})",
-                                            self.run.game_title(),
-                                            self.run.category(),
-                                        ))
+                                        .set_title("mist")
                                         .map_err(|_| get_error())?;
                                     self.state = TimerState::NotRunning {
                                         time_str: timing::ms_to_readable(
@@ -1230,13 +1212,12 @@ impl App {
                     if (elapsed - split_ticks) + before_pause_split
                         < splits[current_split].time()
                     {
-                        color = ahead;
+                        // color = ahead;
                     } else {
-                        color = behind;
+                        // color = behind;
                     }
                 } else if len != 0 {
                     if let Comparison::None = self.comparison {
-                        color = Color::WHITE;
                     } else {
                         // get the amount of time that the runner could spend on the split without being behind comparison
                         let allowed: i128;
@@ -1332,37 +1313,14 @@ impl App {
                         Panel::Pace { golds }
                             if matches!(self.state, TimerState::Running { .. }) =>
                         {
-                            let times = if *golds {
-                                self.run.gold_times()
-                            } else {
-                                self.run.pb_times()
-                            };
-                            let pace = timing::split_time_text(
-                                times[current_split + 1..].iter().sum::<u128>()
-                                    + (self.timer.elapsed().as_millis() - start_ticks)
-                                    + before_pause,
-                            );
-                            text_surface = font
-                                .render(&pace)
-                                .blended(Color::WHITE)
-                                .map_err(|_| get_error())?;
-                            texture = creator
-                                .create_texture_from_surface(text_surface)
-                                .map_err(|_| get_error())?;
-                            panel.set_time(texture);
+                            self.run.pb_times();
+                            
                         }
                         Panel::CurrentSplitDiff { golds }
                             if matches!(self.state, TimerState::Running { .. })
                                 && splits.len() > 1 =>
                         {
-                            let time = if !*golds {
-                                let tm = (self.timer.elapsed().as_millis() - split_ticks) + before_pause_split;
-                                if tm < self.run.gold_times()[current_split] {
-                                    timing::diff_text(-1 * (self.run.pb_times()[current_split] - tm) as i128)
-                                } else {
-                                    timing::diff_text((tm - self.run.pb_times()[current_split]) as i128)
-                                }
-                            } else {
+                            let time = {
                                 let tm = (self.timer.elapsed().as_millis() - split_ticks) + before_pause_split;
                                 if tm < self.run.gold_times()[current_split] {
                                     timing::diff_text(-1 * (self.run.gold_times()[current_split] - tm) as i128)
@@ -1372,7 +1330,7 @@ impl App {
                             };
                             text_surface = font
                                 .render(&time)
-                                .blended(Color::WHITE)
+                                .blended(Color::BLUE)
                                 .map_err(|_| get_error())?;
                             texture = creator
                                 .create_texture_from_surface(text_surface)
@@ -1382,33 +1340,79 @@ impl App {
                         _ => {}
                     }
                 }
-                render::render_panels(&panels[..], &mut self.canvas)?;
             }
             // copy the name, diff, and time textures to the canvas
             // and highlight the split relative to the top of the list marked by cur
             // function places the rows and ensures that they don't go offscreen
-            if max_splits == 0 {
-                render::render_rows(&[], &mut self.canvas, window_width, splits_height, cur)?;
-            } else {
-                render::render_rows(
-                    &splits[top_split_index..=bottom_split_index],
-                    &mut self.canvas,
-                    window_width,
-                    splits_height,
-                    cur,
-                )?;
-            }
+            
             // update the time based on the current timer state
             time_str = self.update_time(before_pause, start_ticks);
             // copy the time texture to the canvas, place individual characters from map
             render::render_time(
-                time_str,
+                time_str.clone(),
+                &map_tex_outline,
+                &coords,
+                (font_y, splits_height, panels.len() as usize),
+                &mut self.canvas, 
+                0,
+            )?;
+            render::render_time(
+                time_str.clone(),
                 &map_tex,
                 &coords,
                 (font_y, splits_height, panels.len() as usize),
                 &mut self.canvas,
+                2,
             )?;
+            
             self.canvas.present();
+
+
+            //original render thing ends here ^
+
+            let ms: i32 = rainbow_int;
+            let rnum = 2500;
+            let r = rainbow(rnum);
+            let mut n = ms;//(ms as f32 * 2.5).floor() as i32 % rnum;
+            let red = r[n as usize][0];
+            let green = r[n as usize][1];
+            let blue = r[n as usize][2];
+            timer_font.set_outline_width(1);
+            let mut c = Color::WHITE;
+            // println!("{:?}", current_split);
+            match &self.state {
+                TimerState::Running { .. } => {
+                    c = Color::RGB(66, 135, 245);
+                }
+                TimerState::NotRunning { .. } => {
+                    if current_split != 0 {
+                        c = Color::RGB(red, green, blue);
+                    }
+                    else {
+                        c = Color::RGB(122, 122, 120);
+                    }
+                }
+                TimerState::Paused { .. } => {
+                    c = Color::RGB(red, green, blue);
+                }
+                TimerState::OffsetCountdown { .. } => {
+                    c = Color::RGB(45, 23, 143);
+                }
+            }
+            map = timer_font
+                .render("- 0 1 2 3 4 5 6 7 8 9 : .")
+            
+                .blended(c)
+                .map_err(|_| get_error())?;
+            map_tex = creator
+                .create_texture_from_surface(&map)
+                .map_err(|_| get_error())?;
+                time_str_outline = time_str.clone();
+            render::render_time( time_str.clone(), &map_tex, &coords, (font_y, splits_height, panels.len() as usize), &mut self.canvas, 2,)?;
+        // set the height where overlap with splits is checked when resizing window
+        let mut timer_height = font_y + splits_height;
+
+            // self.canvas.present();
             if Instant::now().duration_since(frame_time) <= one_sixtieth {
                 thread::sleep(
                     // if the entire loop pass was completed in under 1/60 second, delay to keep the framerate at ~60fps
